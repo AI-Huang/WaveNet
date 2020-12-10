@@ -10,6 +10,7 @@ pytorch>=1.6.0
 """
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 
 def lr_schedule(epoch):
@@ -65,7 +66,7 @@ class WaveNetBlock(nn.Module):
     # Returns:
     """
 
-    def __init__(self, x, filters, kernel_size, n):
+    def __init__(self, filters, kernel_size, n):
         self.n = n
 
         layers = []
@@ -88,7 +89,7 @@ class WaveNetBlock(nn.Module):
         return x, x_skip_connections
 
 
-def WaveNet(input_shape, filters, kernel_size, n):
+class WaveNet(nn.Module):
     """WaveNet model. In this configuration, we follow the origin paper, extract skip_connection layers' output to produce predictions.
     # Arguments:
         input_shape:
@@ -98,77 +99,41 @@ def WaveNet(input_shape, filters, kernel_size, n):
 
     # Returns:
     """
-    # Apply causal conv to the input
-    input_ = Input(shape=input_shape)
-    x = nn.Conv1d(filters=filters,
-                  kernel_size=1,
-                  padding='same')(input_)
 
-    x_residual, x_skip_connections = wavenet_block(x, filters, kernel_size, n)
+    def __init__(self, input_shape, filters, kernel_size, n):
 
-    # Note that the x_residual output port is not used. It may be used to form multi wavenet_block in a cascading configuration.
+        self.conv1 = nn.Conv1d(1, filters, 1)
+        self.wavenet_block = WaveNetBlock(filters, kernel_size, n)
+        self.conv2 = nn.Conv1d(1, 1, 1)
+        self.conv3 = nn.Conv1d(1, 1, 1)
+        self.fc = nn.Linear(input_shape, 256)
 
-    # Model top layers, including fully-connected layer, which produces output
-    x_sum = Add()(x_skip_connections)
-    x = Activation("relu")(x_sum)
-    x = nn.Conv1d(1, 1, activation="relu")(x)
-    x = nn.Conv1d(1, 1)(x)
-    x = Flatten()(x)
-    x = Dense(256, activation="softmax")(x)
-    model = Model(inputs=[input_], outputs=[x])
+    def forward(self, x):
+        """
+        docstring
+        """
+        # Apply causal conv to the input
+        x = self.conv1(x)
 
-    return model
+        # Note that the x_residual output port is not used. It may be used to form multi wavenet_block in a cascading configuration.
+        x_residual, x_skip_connections = self.wavenet_block(x)
 
+        # Model top layers, including fully-connected layer, which produces output
+        x_sum = torch.sum(x_skip_connections, dim=1)
+        x = F.relu(x_sum)
+        x = F.relu(self.conv2(x))
+        x = self.conv3(x)
+        x = x.view(-1, self.num_flat_features(x))
+        x = F.softmax(self.fc(x))
 
-def build_and_compile_model(input_shape, filters, kernel_size, n):
-    """
-    """
-    model = WaveNet(input_shape, filters, kernel_size, n)
-    model.compile(
-        loss="categorical_crossentropy", optimizer="adam",
-        metrics=["accuracy"])
-    return model
+        return x
 
-
-def WaveNet_LSTM(input_shape, activation=None, batch_norm=False, attention_type="custom"):
-    """WaveNet_LSTM model. In this configuration, we use the x_residual port(s), connecting them in a cascading way, and pass the output to a LSTM layer.
-    Inputs:
-        input_shape:
-        filters:
-        kernel_size:
-        n:
-    Return:
-    """
-    # Model parameters
-    filters = 16
-    kernel_size = 3
-    ns = [8, 5, 3]
-    # Apply causal conv to the input
-    input_ = Input(shape=input_shape)
-    x = nn.Conv1d(filters=filters,
-                  kernel_size=1,
-                  padding='same')(input_)
-
-    for i in range(3):
-        # x_skip_connections is not used.
-        x, _ = wavenet_block(x, filters, kernel_size, ns[i])
-        if activation:
-            x = Activation(activation)(x)
-        x = AveragePooling1D(10)(x)
-
-    x = Bidirectional(LSTM(64, return_sequences=True))(x)
-    if attention_type == "official":
-        x = Attention()([x, x])
-    else:
-        # x = myAttention(input_shape[0]//1000)(x)  # 150
-        pass
-
-    x = Dropout(0.2)(x)
-    x = Dense(128, activation="relu")(x)
-    x = Dense(1)(x)
-    model = Model(inputs=input_, outputs=x)
-
-    return model
+    def num_flat_features(self, x):
+        size = x.size()[1:]
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
 
 
 def main():
