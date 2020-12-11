@@ -13,13 +13,6 @@ from torch import nn
 from torch.nn import functional as F
 
 
-def lr_schedule(epoch):
-    lr = 1e-4  # base learning rate
-    if epoch >= 20:
-        lr *= 0.1  # # reduced by 0.1 when finish training for 40 epochs
-    return lr
-
-
 class WaveNetLayer(nn.Module):
     """Single dilated conv layer in WaveNet
     # Arguments:
@@ -58,10 +51,9 @@ class WaveNetLayer(nn.Module):
 class WaveNetBlock(nn.Module):
     """wavenet_block, serveral wavenet layers which's dilation_rates are 2-based exponentially ascending, form a wavenet_block.
     # Arguments:
-        x: input passed to this layer.
         filters: number of filters used for dilated convolution.
         kernel_size: the kernel size of the dilated convolution.
-        dilation_rate: the dilation rate for the dilated convolution.
+        n: number of the dilated convolution layers.
 
     # Returns:
     """
@@ -74,7 +66,8 @@ class WaveNetBlock(nn.Module):
         for i, dilation_rate in enumerate(dilation_rates):
             name = "wavenet_layer_" + str(i)
             layers.append(
-                (name, WaveNetLayer(filters, kernel_size, dilation_rate)))
+                (name, WaveNetLayer(filters, kernel_size, dilation_rate))
+            )
 
         self.wavenet_layers = nn.Sequential(*layers)
 

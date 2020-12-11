@@ -12,13 +12,6 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Activation, Conv1D, Multiply, Add, Flatten, Dense
 
 
-def lr_schedule(epoch):
-    lr = 1e-4  # base learning rate
-    if epoch >= 20:
-        lr *= 0.1  # # reduced by 0.1 when finish training for 40 epochs
-    return lr
-
-
 def wavenet_layer(x, filters, kernel_size, dilation_rate):
     """Single dilated conv layer in WaveNet
     Inputs:

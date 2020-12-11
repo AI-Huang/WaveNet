@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# @Date    : Dec-10-20 17:52
+# @Date    : Dec-04-20 17:07
+# @UpDate  : Dec-10-20 17:52
 # @Author  : Kelly Hwong (dianhuangkan@gmail.com)
-# @Link    : http://example.org
 
 """WaveNetLSTM model implemented with Keras functional API
 Environments:
@@ -12,6 +12,13 @@ from wavenet.keras_fn.wavenet import wavenet_block
 from tensorflow.keras import Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Activation, Conv1D, AveragePooling1D, Bidirectional, LSTM, Dropout, Dense, Attention
+
+
+def lr_schedule(epoch):
+    lr = 1e-4  # base learning rate
+    if epoch >= 20:
+        lr *= 0.1  # # reduced by 0.1 when finish training for 40 epochs
+    return lr
 
 
 def WaveNet_LSTM(input_shape, activation=None, batch_norm=False, attention_type="custom"):
@@ -33,9 +40,9 @@ def WaveNet_LSTM(input_shape, activation=None, batch_norm=False, attention_type=
                kernel_size=1,
                padding='same')(input_)
 
-    for i in range(3):
+    for i, n in enumerate(ns):
         # x_skip_connections is not used.
-        x, _ = wavenet_block(x, filters, kernel_size, ns[i])
+        x, _ = wavenet_block(x, filters, kernel_size, n)
         if activation:
             x = Activation(activation)(x)
         x = AveragePooling1D(10)(x)
@@ -43,9 +50,6 @@ def WaveNet_LSTM(input_shape, activation=None, batch_norm=False, attention_type=
     x = Bidirectional(LSTM(64, return_sequences=True))(x)
     if attention_type == "official":
         x = Attention()([x, x])
-    else:
-        # x = myAttention(input_shape[0]//1000)(x)  # 150
-        pass
 
     x = Dropout(0.2)(x)
     x = Dense(128, activation="relu")(x)
