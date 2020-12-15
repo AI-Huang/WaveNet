@@ -8,6 +8,7 @@
 Environments:
 pytorch>=1.6.0
 """
+from collections import OrderedDict
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -17,32 +18,33 @@ class WaveNetLayer(nn.Module):
     """Single dilated conv layer in WaveNet
     # Arguments:
         x: input passed to this layer.
-        filters: number of filters used for dilated convolution.
+        out_channels: number of out_channels used for dilated convolution.
         kernel_size: the kernel size of the dilated convolution.
         dilation: the dilation rate for the dilated convolution.
 
     # Returns:
     """
 
-    def __init__(self, filters, kernel_size, dilation):
-
+    def __init__(self, in_channels, out_channels, kernel_size, dilation):
+        super().__init__()
         # Dilated Conv
-        padding = (kernel_size - 1) // 2
-        self.conv1 = nn.Conv1d(1, filters, kernel_size,
+        padding = dilation * (kernel_size - 1) // 2
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size,
                                padding=padding,
                                dilation=dilation)
         self.tanh = nn.Tanh()
         self.sigm = nn.Sigmoid()
-        self.conv2 = nn.Conv1d(1, 1, kernel_size=1)
+        self.conv2 = nn.Conv1d(in_channels=out_channels,
+                               out_channels=1, kernel_size=1)
 
     def forward(self, x):
         conv_out = self.conv1(x)
+
         tanh_out = self.tanh(conv_out)
         sigm_out = self.sigm(conv_out)
+
         x_mul = torch.mul(tanh_out, sigm_out)
-        # Skip connections
         x_skip_connection = self.conv2(x_mul)
-        # Applying residual
         x_residual = torch.add(x, x_skip_connection)
 
         return x_residual, x_skip_connection
@@ -51,25 +53,25 @@ class WaveNetLayer(nn.Module):
 class WaveNetBlock(nn.Module):
     """wavenet_block, serveral wavenet layers which's dilation_rates are 2-based exponentially ascending, form a wavenet_block.
     # Arguments:
-        filters: number of filters used for dilated convolution.
+        out_channels: number of out_channels used for dilated convolution.
         kernel_size: the kernel size of the dilated convolution.
         n: number of the dilated convolution layers.
 
     # Returns:
     """
 
-    def __init__(self, filters, kernel_size, n):
+    def __init__(self, in_channels, out_channels, kernel_size, n):
+        super().__init__()
         self.n = n
 
         layers = []
         dilation_rates = [2**i for i in range(self.n)]
         for i, dilation_rate in enumerate(dilation_rates):
-            name = "wavenet_layer_" + str(i)
             layers.append(
-                (name, WaveNetLayer(filters, kernel_size, dilation_rate))
+                ("wavenet_layer_" + str(i),
+                 WaveNetLayer(in_channels, out_channels, kernel_size, dilation_rate))
             )
-
-        self.wavenet_layers = nn.Sequential(*layers)
+        self.wavenet_layers = nn.Sequential(OrderedDict(layers))
 
     def forward(self, x):
         x_skip_connections = []
@@ -85,21 +87,23 @@ class WaveNetBlock(nn.Module):
 class WaveNet(nn.Module):
     """WaveNet model. In this configuration, we follow the origin paper, extract skip_connection layers' output to produce predictions.
     # Arguments:
-        input_shape:
-        filters:
+        input_size:
+        out_channels:
         kernel_size:
         n:
 
     # Returns:
     """
 
-    def __init__(self, input_shape, filters, kernel_size, n):
+    def __init__(self, input_size, out_channels, kernel_size, n):
+        self.in_channels = 1
 
-        self.conv1 = nn.Conv1d(1, filters, 1)
-        self.wavenet_block = WaveNetBlock(filters, kernel_size, n)
+        self.conv1 = nn.Conv1d(1, out_channels, 1)
+        self.wavenet_block = WaveNetBlock(
+            self.in_channels, out_channels, kernel_size, n)
         self.conv2 = nn.Conv1d(1, 1, 1)
         self.conv3 = nn.Conv1d(1, 1, 1)
-        self.fc = nn.Linear(input_shape, 256)
+        self.fc = nn.Linear(input_size, 256)
 
     def forward(self, x):
         """
