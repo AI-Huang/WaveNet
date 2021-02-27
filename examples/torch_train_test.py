@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # @Date    : Dec-11-20 17:31
-# @Author  : Kelly Hwong (dianhuangkan@gmail.com)
+# @Author  : Kan HUANG (kan.huang@connect.ust.hk)
 
 import torch
 from wavenet.torch_fn.wavenet_lstm import WaveNet_LSTM

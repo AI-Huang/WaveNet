@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # @Date    : Dec-04-20 17:07
-# @Author  : Kelly Hwong (dianhuangkan@gmail.com)
+# @Author  : Kan HUANG (kan.huang@connect.ust.hk)
 
 """WaveNet implemented with Keras functional API
 Environments:

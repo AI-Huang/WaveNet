@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # @Date    : Dec-04-20 17:07
 # @UpDate  : Dec-10-20 17:52
-# @Author  : Kelly Hwong (dianhuangkan@gmail.com)
+# @Author  : Kan HUANG (kan.huang@connect.ust.hk)
 
 """WaveNetLSTM model implemented with Keras functional API
 Environments:
