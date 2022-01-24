@@ -20,8 +20,9 @@ def wavenet_layer(x, filters, kernel_size, dilation_rate):
         kernel_size: the kernel size of the dilated convolution.
         dilation_rate: the dilation rate for the dilated convolution.
     """
-    # Cache the input
+    # Stored as residual node
     x_residual = x
+
     # Dilated Conv
     tanh_out = Conv1D(filters=filters,
                       kernel_size=kernel_size,
@@ -50,6 +51,11 @@ def wavenet_block(x, filters, kernel_size, n):
         kernel_size: the kernel size of the dilated convolution.
         dilation_rate: the dilation rate for the dilated convolution.
     """
+    # Causal Conv
+    x = Conv1D(filters=filters,
+               kernel_size=1,
+               padding='same')(x)
+
     x_skip_connections = []
 
     # Apply dilated Conv

@@ -25,22 +25,23 @@ def WaveNet_LSTM(input_shape, activation=None, batch_norm=False, attention_type=
     """WaveNet_LSTM model. In this configuration, we use the x_residual port(s), connecting them in a cascading way, and pass the output to a LSTM layer.
     Inputs:
         input_shape:
-        filters:
-        kernel_size:
-        n:
+        activation:
+        batch_norm:
+        attention_type:
     Return:
     """
     # Model parameters
     filters = 16
     kernel_size = 3
-    ns = [8, 5, 3]
+    dilation_layers = [8, 5, 3]
+
     # Apply causal conv to the input
     input_ = Input(shape=input_shape)
     x = Conv1D(filters=filters,
                kernel_size=1,
                padding='same')(input_)
 
-    for i, n in enumerate(ns):
+    for i, n in enumerate(dilation_layers):
         # x_skip_connections is not used.
         x, _ = wavenet_block(x, filters, kernel_size, n)
         if activation:
